@@ -22,7 +22,7 @@ int main() {
         cout << "Your possible moves are: ";
         while(main_possibleMovesList != NULL){
             auto temp = main_possibleMovesList->get_move().to_text();
-            if(main_possibleMovesList->get_next() == NULL) {
+            if (main_possibleMovesList->get_next() == NULL) {
                 cout << temp << "." << endl;
             } else {
                 cout << temp << ", ";
@@ -41,7 +41,6 @@ int main() {
 
         current_move.get_move();
         while (!gameState->check_move(current_move)) {
-//            clear();
 //            gameState->display();
             cout << "That is an invalid move. Please try again. " << endl;
 
@@ -62,11 +61,11 @@ int main() {
             current_move.get_move();
         }
 
-        if (gameState->get_move_number() < 1 ) { // if no moves have been played, start the list
-            gameState->moveList = new move_list(current_move);
-        } else {
-            gameState->moveList = gameState->moveList->add(new move_list(current_move));
-        }
+//        if (gameState->get_move_number() < 1 ) { // if no moves have been played, start the list TODO could delete?
+//            gameState->moveList = new move_list(current_move);
+//        } else {
+//            gameState->moveList = gameState->moveList->add(new move_list(current_move));
+//        }
 
 
         gameState->make_move(current_move);
@@ -77,7 +76,7 @@ int main() {
         cout << endl << endl << endl;
     }
 
-    gameState->new_game();
-    gameState->display();
+//    gameState->new_game();
+//    gameState->display();
     return 0;
 }

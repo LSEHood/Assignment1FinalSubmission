@@ -54,7 +54,6 @@ position::position(position &p){
     this->y = p.y;
 }
 position::~position(){
-    //delete[] positionStr;
 }
 
 // Sets a position from a string
@@ -112,8 +111,8 @@ void position::offset(const int a, const int b) {
 class _move {
     friend class game_state;
 private:
-    position from;
-    position to;
+    position from; //b1
+    position to; // a2
 //    int value_fromMove = 0;
 public:
     _move(void);							        // Default constructor
@@ -143,7 +142,6 @@ _move::_move(position& f, position& t) { //Eg. B1 to A2
     this->to = t;
 }
 _move::~_move(){
-    //delete[] moveStr;
 }
 void _move::from_text(const char* str) { // Converts a string to a move. String must be in the form "A4-B3"
     this->from = position(str[0], str[1]);
@@ -212,32 +210,28 @@ void _move::operator =(_move &m ) { // move assignment operator
 class move_list {
     friend class game_state;
 private:
-    _move m;        // The (current??) move in the list
+    _move m;        // The move in the list
     move_list *next;// The next entry in the list.
-//    int value_fromList = 0; //todo maybe delete
+    move_list *child;
+    int move_value = 0;
+    int possible_moves = 0;
 
 public:
-    move_list() { // default constructor for first entry
-        _move default_move = _move();
-        m = default_move;
-        next = nullptr;
+    int get_total_move_future_value(void) {
+        return this->move_value;
     }
+    int get_total_possible_future_moves(void) {
+        return this->possible_moves;
+    }
+    move_list(); // default constructor for first entry
+
     move_list(_move &m );   // Constructor
     ~move_list();                 // Destructor – removes all items in the list.
     move_list * add( move_list* m ); // Inserts m into the start of the list, and returns the new start.
     move_list * get_next(){
         return next;
     }
-    int count(move_list* head){
-        int i = 0; // empty
-        move_list* current = head;
-        if(!m.get_from().is_valid()){ return i;}
-        while(current != NULL) {
-            i++;
-            current = current->next;
-        }
-        return i;
-    }
+    int count( move_list* head );
 
     _move get_move() {
         return m;
@@ -246,17 +240,25 @@ public:
     void operator =(move_list &list) { // move assignment operator
         m = list.m;
         next = list.next;
+        child = list.child;
     }
 };
 
+move_list::move_list(void) { // default constructor for first entry
+//        _move default_move = _move();
+//        m = default_move;
+//        next = nullptr;
+//        child = nullptr;
+}
 
 move_list::move_list(_move &m) {
     this->m = m;
     this->next = NULL;
+    this->child = NULL;
 }
 
 move_list::~move_list() {
-    if (next != NULL) delete next;
+    if (next != NULL) delete next; //todo add child stuff
 }
 
 /**
@@ -273,6 +275,18 @@ move_list * move_list::add( move_list *new_start ) { // Inserts m into the start
     new_start->next = this;
     return new_start;
 }
+
+int move_list::count(move_list* head) {
+        int i = 0; // empty
+        move_list* current = head;
+        if(!m.get_from().is_valid()){ return i;}
+        while(current != NULL) {
+            i++;
+            current = current->next;
+        }
+        return i;
+}
+
 
 
 
@@ -302,62 +316,44 @@ enum piece { EMPTY, RED_PAWN, GREEN_PAWN, RED_KING, GREEN_KING, INVALID };
 class game_state {
 //    friend class move_list;
 private:
-    //can do this, but, not ideal. 'Bad' practise because of memory issues
-    piece board[4][4] = { {INVALID, GREEN_PAWN, INVALID, GREEN_PAWN},
-                          { EMPTY, INVALID, EMPTY, INVALID },
-                          { INVALID, EMPTY, INVALID, EMPTY },
-                          { RED_PAWN, INVALID, RED_PAWN, INVALID } };
-//    piece board[4][4] = { { INVALID,    EMPTY,    INVALID,  RED_KING  },            // TODO REMOVE BEFORE SUBMISSION
-//                          { EMPTY, INVALID,  EMPTY ,   INVALID },
-//                          { INVALID,    GREEN_PAWN, INVALID,  EMPTY },
-//                          { RED_PAWN,   INVALID,  EMPTY ,   INVALID } };
+    piece board[4][4];
 
-    int redPiecesCaptured = 0;
-    int greenPiecesCaptured = 0;
+    int redPiecesCaptured;
+    int greenPiecesCaptured;
 
-    int moveCount = 0;
-    bool isGameOver = false;
-    bool isRedTurn = false;
-    bool isGreenTurn = true; // Green will always start in my game - can change later, easier for now
+    int moveCount;
+    bool isGameOver;
+    bool isRedTurn;
+    bool isGreenTurn;
 
-    position *greenPieceOnePosition = new position('B', '1');
-    position *greenPieceTwoPosition = new position('D', '1');
-
-    position *redPieceOnePosition = new position('A', '4');
-    position *redPieceTwoPosition = new position('C', '4');
 
 public:
     game_state(void);				                    // Default constructor
     game_state(game_state& g);	                        // Copy constructor
-
     ~game_state();			                            // Destructor: do any tidying up required
-
     void new_game(void); 		                        // Initialises state for the start of a new game #TO DO
-
     bool is_game_over(void);	                        // Check the game status
-    bool is_red_turn(void);
-    bool is_green_turn(void);
-
+//    bool is_red_turn(void);
+//    bool is_green_turn(void);
     int get_move_number(void);	// How many moves have been played?
     void increment_move(void);	// Increment move number (and state)
-
     piece get_piece(const position& p); 	// What piece is at the specified position
-
     void display( void ); // Provides a simple user interface to display your game using text-based graphics on the console window.
     bool check_move(_move m );// Checks if a provided move is a legal move, and return true if it is, otherwise return false. Note that if there is no piece at the starting square, the move is not legal.
     void make_move( _move &m ); // Plays the move, and updates the game state accordingly. This includes the position of pieces on the board, the move counter, and whether or not the game is over. Don’t forget to convert pawns to kings when they reach the opposite end of the board.
-
     move_list * find_moves( void );   // This should return a linked list of possible moves that can be made from the current position (depending on which player it is to play).
     int getIntFromABC(char m) const;
-
     int evaluate(void);
-
+    void computer_move( void );
     move_list * possibleMovesList = nullptr;
+    move_list * findChildrenList = nullptr;
     move_list * moveList = nullptr;
+
+    void find_child_moves();
 };
 
 game_state::game_state( void ){
-//    new_game();
+    new_game();
 }
 game_state::game_state( game_state &g ){
     //Assign board values
@@ -366,6 +362,7 @@ game_state::game_state( game_state &g ){
             board[row][col] = g.board[row][col];
         }
     }
+    //todo add more here
     //Assigning private variables
     moveCount = g.moveCount;
     isGameOver = g.isGameOver;
@@ -373,16 +370,53 @@ game_state::game_state( game_state &g ){
     isGreenTurn = g.isGreenTurn;
 }
 
-game_state::~game_state(){
+game_state::~game_state() {
+    delete possibleMovesList;
+    delete findChildrenList;
+    delete moveList;
 }
+
+//void game_state::new_game( void )
+//{
+//    board[0][0] = INVALID;
+//    board[0][1] = GREEN_PAWN;
+//    board[0][2] = INVALID;
+//    board[0][3] = GREEN_PAWN;
+//
+//    board[1][0] = EMPTY;
+//    board[1][1] = INVALID;
+//    board[1][2] = EMPTY;
+//    board[1][3] = INVALID;
+//
+//    board[2][0] = INVALID;
+//    board[2][1] = EMPTY;
+//    board[2][2] = INVALID;
+//    board[2][3] = EMPTY;
+//
+//    board[3][0] = RED_PAWN;
+//    board[3][1] = INVALID;
+//    board[3][2] = RED_PAWN;
+//    board[3][3] = INVALID;
+//
+//
+//    greenPieceOnePosition = new position('B', '1'); //TODO decide if i need this still
+//    greenPieceTwoPosition = new position('D', '1');
+//
+//    redPieceOnePosition = new position('A', '4');
+//    redPieceTwoPosition = new position('C', '4');
+//
+//    this->moveCount = 0;
+//    this->isGameOver = false;
+//    this->isRedTurn = false;
+//    this->isGreenTurn = true; // Green will always start in my game - can change later, easier for now
+//}
 
 void game_state::new_game( void )
 {
-    cout << "New game!" << endl << endl;
     board[0][0] = INVALID;
     board[0][1] = GREEN_PAWN;
     board[0][2] = INVALID;
-    board[0][3] = GREEN_PAWN;
+    board[0][3] = EMPTY;
 
     board[1][0] = EMPTY;
     board[1][1] = INVALID;
@@ -396,22 +430,14 @@ void game_state::new_game( void )
 
     board[3][0] = RED_PAWN;
     board[3][1] = INVALID;
-    board[3][2] = RED_PAWN;
+    board[3][2] = EMPTY;
     board[3][3] = INVALID;
-
-
-    greenPieceOnePosition = new position('B', '1'); //TODO decide if i need this still
-    greenPieceTwoPosition = new position('D', '1');
-
-    redPieceOnePosition = new position('A', '4');
-    redPieceTwoPosition = new position('C', '4');
 
     this->moveCount = 0;
     this->isGameOver = false;
     this->isRedTurn = false;
-    this->isGreenTurn = true; // Green will always start in my game - can change later, easier for now
+    this->isGreenTurn = true; // TODO delete before submission and use OG new game
 }
-
 
 bool game_state::is_game_over( void ){
     // if A player loses the game if they cannot make a legal move. Either their pieces are blocked, or
@@ -449,20 +475,18 @@ bool game_state::is_game_over( void ){
     }
     return false;
 }
-bool game_state::is_red_turn(void) {
-    return this->isRedTurn;
-}
-bool game_state::is_green_turn( void ){
-    return this->isGreenTurn;
-}
+//bool game_state::is_red_turn(void) {
+//    return this->isRedTurn;
+//}
+//bool game_state::is_green_turn( void ){
+//    return this->isGreenTurn;
+//}
 
 int game_state::get_move_number( void ){
     return moveCount;
 }
 void game_state::increment_move( void ){
-//    if(is_game_over()) { return; }
-
-    this->moveCount += 1;
+    moveCount += 1;
 
     if (isRedTurn && !isGameOver) {
         isRedTurn = false;
@@ -536,6 +560,7 @@ void game_state::display()
         }
         cout << endl;
     }
+    cout << "Game state total: " << evaluate() << endl;
 }
 
 /**
@@ -545,7 +570,7 @@ void game_state::display()
 bool game_state::check_move(_move m) // todo A player loses the game if they cannot make a legal move. Either their pieces are blocked, or all of their pieces have been captured.
 {
     if (m.get_to().is_valid() && m.get_from().is_valid()) { //move is a valid location on board
-        if(get_piece(m.get_to()) == EMPTY) { // if the 'to' position isnt taken already/if there's a vacant space on the other side
+        if(get_piece(m.get_to()) == EMPTY) {
             //find starting position of piece on board
             int from_row = int(m.get_from().y) - 49; // "- 48" converts the char to int
             int from_col = getIntFromABC(m.get_from().x);
@@ -605,17 +630,6 @@ bool game_state::check_move(_move m) // todo A player loses the game if they can
 
 void game_state::make_move(_move &m) // removed const
 {
-    if(greenPieceOnePosition->to_text() == m.from.to_text()) {
-        greenPieceOnePosition = &m.to;
-    } else if (greenPieceTwoPosition->to_text() == m.from.to_text()) {
-        greenPieceTwoPosition = &m.to;
-    } else if (redPieceOnePosition->to_text() == m.from.to_text()) {
-        redPieceOnePosition = &m.to;
-    } else if (redPieceTwoPosition->to_text() == m.from.to_text()) {
-        redPieceTwoPosition = &m.to;
-    } else {
-        cout << "Error in make move - new stuff" << endl;
-    }
     //find starting position of piece on board
     int from_row = int(m.get_from().y) - 49; // "- 48" converts the char to int, the additional -1 make '1' into int 0
     int from_col = getIntFromABC(m.get_from().x);
@@ -626,7 +640,7 @@ void game_state::make_move(_move &m) // removed const
 
     // if either columns or rows are +/- 2 ==> they are trying to take a player
     if(((from_row+2) == to_row || (from_row-2) == to_row) && ((from_col+2) == to_col || (from_col-2) == to_col)) {
-        if (isGreenTurn) { //  this is to stop them being able to move an opposite piece abd make it their colour
+        if (isGreenTurn) { //  this is to stop them being able to move an opposite piece and make it their colour
 
             // The below is to calculate what piece is being jumped so we can set it to empty
             int middle_row = from_row;
@@ -756,6 +770,37 @@ move_list * game_state::find_moves( void )
                     }
 
                     /**
+                     *  try find a position to jump Red - as a pawn
+                     */
+                    if (board[row+1][col+1] == RED_PAWN || board[row+1][col+1] == RED_KING) {
+                        if (board[row+2][col+2] == EMPTY) {
+                            position *from = new position((char) (col + 65), (char) (row + 49));
+                            position *to = new position((char) (col + 2 + 65), (char) (row + 2 + 49));
+                            if (from->is_valid() && to->is_valid()) {
+                                _move *possible_move = new _move(*from, *to);
+                                if (check_move(*possible_move)) {
+                                    auto current_move_list = new move_list(*possible_move);
+                                    this->possibleMovesList = possibleMovesList->add(current_move_list);
+                                }
+                            }
+                        }
+                    }
+
+                    if (board[row+1][col-1] == RED_PAWN || board[row+1][col-1] == RED_KING) {
+                        if (board[row+2][col-2] == EMPTY) {
+                            position *from = new position( (char)(col+65), (char)(row + 49));
+                            position *to = new position( (char)(col-2+65), (char)(row+2 + 49));
+                            if (from->is_valid() && to->is_valid()) {
+                                _move *possible_move = new _move(*from, *to);
+                                if (check_move(*possible_move)) {
+                                    auto current_move_list = new move_list(*possible_move);
+                                    this->possibleMovesList = possibleMovesList->add(current_move_list);
+                                }
+                            }
+                        }
+                    }
+
+                    /**
                      * Kings can go backwards
                      */
                     if (board[row][col] == GREEN_KING) {
@@ -823,7 +868,7 @@ move_list * game_state::find_moves( void )
                         position *to = new position( (char)(col -1+65), (char)(row - 1+ 49));
                         _move *possible_move = new _move(*from, *to);
                         if(check_move(*possible_move)) {
-                            this->possibleMovesList = possibleMovesList->add(new move_list(*possible_move));
+                            possibleMovesList = possibleMovesList->add(new move_list(*possible_move));
                         }
                     }
 
@@ -832,7 +877,7 @@ move_list * game_state::find_moves( void )
                         position *to = new position( (char)(col +1+65), (char)(row - 1+ 49));
                         _move *possible_move = new _move(*from, *to);
                         if(check_move(*possible_move)) {
-                            this->possibleMovesList = possibleMovesList->add(new move_list(*possible_move));
+                            possibleMovesList = possibleMovesList->add(new move_list(*possible_move));
                         }
 
                     }
@@ -847,7 +892,7 @@ move_list * game_state::find_moves( void )
                             _move *possible_move = new _move(*from, *to);
                             if (check_move(*possible_move)) {
                                 auto current_move_list = new move_list(*possible_move);
-                                this->possibleMovesList = possibleMovesList->add(current_move_list);
+                                possibleMovesList = possibleMovesList->add(current_move_list);
                             }
                         }
                     }
@@ -859,7 +904,7 @@ move_list * game_state::find_moves( void )
                             _move *possible_move = new _move(*from, *to);
                             if (check_move(*possible_move)) {
                                 auto current_move_list = new move_list(*possible_move);
-                                this->possibleMovesList = possibleMovesList->add(current_move_list);
+                                possibleMovesList = possibleMovesList->add(current_move_list);
                             }
                         }
                     }
@@ -874,7 +919,7 @@ move_list * game_state::find_moves( void )
                             _move *possible_move = new _move(*from, *to);
                             if (check_move(*possible_move)) {
                                 auto current_move_list = new move_list(*possible_move);
-                                this->possibleMovesList = possibleMovesList->add(current_move_list);
+                                possibleMovesList = possibleMovesList->add(current_move_list);
                             }
                         }
 
@@ -884,7 +929,7 @@ move_list * game_state::find_moves( void )
                             _move *possible_move = new _move(*from, *to);
                             if (check_move(*possible_move)) {
                                 auto current_move_list = new move_list(*possible_move);
-                                this->possibleMovesList = possibleMovesList->add(current_move_list);
+                                possibleMovesList = possibleMovesList->add(current_move_list);
                             }
                         }
 
@@ -898,7 +943,7 @@ move_list * game_state::find_moves( void )
                                 _move *possible_move = new _move(*from, *to);
                                 if (check_move(*possible_move)) {
                                     auto current_move_list = new move_list(*possible_move);
-                                    this->possibleMovesList = possibleMovesList->add(current_move_list);
+                                    possibleMovesList = possibleMovesList->add(current_move_list);
                                 }
                             }
                         }
@@ -910,7 +955,7 @@ move_list * game_state::find_moves( void )
                                 _move *possible_move = new _move(*from, *to);
                                 if (check_move(*possible_move)) {
                                     auto current_move_list = new move_list(*possible_move);
-                                    this->possibleMovesList = possibleMovesList->add(current_move_list);
+                                    possibleMovesList = possibleMovesList->add(current_move_list);
                                 }
                             }
                         }
@@ -924,7 +969,43 @@ move_list * game_state::find_moves( void )
     else {
         cout << "Error in find moves function." << endl;
     }
+
+//    find_child_moves();
+    findChildrenList = new move_list(*possibleMovesList);
+
+    while(true){
+        if (!findChildrenList->m.from.is_valid() || findChildrenList->next == NULL){
+            break;
+        }
+        game_state *childGameState = new game_state(*this);
+        childGameState->make_move(findChildrenList->m);
+        childGameState->display();
+
+        move_list *childMoves = childGameState->find_moves();
+        findChildrenList->possible_moves =  findChildrenList->possible_moves + childMoves->count(childMoves);
+
+        /** you want to 'evaluate' each child and create a running total you assign (around this children line)
+         * so you eventually end up with a 'best' pathway of your first three **/
+        findChildrenList->move_value = findChildrenList->move_value + childGameState->evaluate();
+
+        findChildrenList->child = childMoves;
+
+        // use newly added move_value from move_list class
+
+        if (findChildrenList->get_next() == NULL){
+            possibleMovesList->possible_moves =  possibleMovesList->possible_moves + findChildrenList->count(childMoves);
+            possibleMovesList->move_value =  possibleMovesList->move_value + childGameState->evaluate();
+            break;
+        } else {
+            findChildrenList = findChildrenList->get_next();
+        }
+    }
+
     return possibleMovesList;
+}
+
+void game_state::find_child_moves() {
+
 }
 
 
@@ -937,7 +1018,7 @@ move_list * game_state::find_moves( void )
  * How close are you to being blocked? i.e. are you able to make several possible moves?
  * Are you in danger of being jumped?
  * The score you assign to a position will be a combination of several of these factors.
- * @return
+ * @return an int that if positive number = green is looking good, if negative number = red is looking good
  */
 int game_state::evaluate(void){
     int value = 0;
@@ -946,115 +1027,106 @@ int game_state::evaluate(void){
     //negative numbers = red is looking good
     for (int row = 0; row < 4; row++) {
         for (int col = 0; col < 4; col++) {
+            if (board[row][col] != EMPTY || board[row][col] != INVALID) {
 
-            /** Kings are valuable **/
-            if (board[row][col] == GREEN_KING) { value += 2; }
-            if (board[row][col] == GREEN_KING) { value += 2; }
-            if (board[row][col] == RED_KING) { value -= 2; }
-            if (board[row][col] == RED_KING) { value -= 2; }
+                /** Kings are valuable **/
+                if (board[row][col] == GREEN_KING) { value += 2; }
+                if (board[row][col] == RED_KING) { value -= 2; }
 
-            /** If pawn is nearing the end of the board, give it some value points **/
-            if (board[row][col] == GREEN_PAWN && row == 2) { value += 2; }
-            if (board[row][col] == GREEN_PAWN && row == 1) { value += 1; }
-            if (board[row][col] == RED_PAWN && row == 1) { value += 2; }
-            if (board[row][col] == RED_PAWN && row == 2) { value += 1; }
+                /** Pawns are less valuable **/
+                if (board[row][col] == GREEN_PAWN) { value += 1; }
+                if (board[row][col] == RED_PAWN) { value -= 1; }
 
-            //    Are you in danger of being jumped?
-            //    TODO
-            /**
-             *  try find a position to jump Red - as pawn
-             */
-            if (board[row + 1][col - 1] == RED_PAWN || board[row + 1][col - 1] == RED_KING) {
-                if (board[row + 2][col - 2] == EMPTY) { //left most column's move
-                    cout << "Ready to be jumped" << endl;
-//                    position *from = new position((char) (col + 65), (char) (row + 49));
-//                    position *to = new position((char) (col - 2 + 65), (char) (row + 2 + 49));
-//                    if (from->is_valid() && to->is_valid()) {
-//                        _move *possible_move = new _move(*from, *to);
-//                        if (check_move(*possible_move)) {
-//                            auto current_move_list = new move_list(*possible_move);
-//                            this->possibleMovesList = possibleMovesList->add(current_move_list);
-//                        }
-//                    }
+                /** If pawn is nearing the end of the board, give it some value points **/
+                if (board[row][col] == GREEN_PAWN && row == 2) { value += 2; }
+                if (board[row][col] == GREEN_PAWN && row == 1) { value += 1; }
+                if (board[row][col] == RED_PAWN && row == 1) { value += 2; }
+                if (board[row][col] == RED_PAWN && row == 2) { value += 1; }
+
+                /**    Are you in danger of being jumped? **/ //    TODO
+                if ((board[row][col] == GREEN_PAWN || board[row][col] == GREEN_KING) && isGreenTurn){
+                    if((board[row+1][col+1] == RED_PAWN || board[row+1][col+1] == RED_KING) &&
+                       (board[row+2][col+2] == EMPTY)) {
+                        value += 3;
+                        cout << "Red, You're in danger of being jumped! 1" << endl;
+                    }
+                    if((board[row+1][col-1] == RED_PAWN || board[row+1][col-1] == RED_KING) &&
+                       (board[row+2][col-2] == EMPTY)) {
+                        value += 3;
+                        cout << "Red, You're in danger of being jumped! 2" << endl;
+                    }
+                    if (board[row][col] == GREEN_KING) { //might delete this? TODO
+                        if ((board[row-1][col+1] == RED_PAWN || board[row-1][col+1] == RED_KING) &&
+                            (board[row-2][col+2] == EMPTY)) {
+                            value += 3;
+                            cout << "Red, You're in danger of being jumped! 3" << endl;
+                        }
+                        if ((board[row-1][col-1] == RED_PAWN || board[row-1][col-1] == RED_KING) &&
+                            (board[row-2][col-2] == EMPTY)) {
+                            value += 3;
+                            cout << "Red, You're in danger of being jumped! 4" << endl;
+                        }
+                    }
                 }
-            }
-            if (board[row + 1][col + 1] == RED_PAWN || board[row + 1][col + 1] == RED_KING) {
-                if (board[row + 2][col + 2] == EMPTY) {
-                    cout << "Ready to be jumped" << endl;
-//                    position *from = new position((char) (col + 65), (char) (row + 49));
-//                    position *to = new position((char) (col + 2 + 65), (char) (row + 2 + 49));
-//                    if (from->is_valid() && to->is_valid()) {
-//                        _move *possible_move = new _move(*from, *to);
-//                        if (check_move(*possible_move)) {
-//                            auto current_move_list = new move_list(*possible_move);
-//                            this->possibleMovesList = possibleMovesList->add(current_move_list);
-//                        }
-//                    }
+                if ((board[row][col] == RED_PAWN || board[row][col] == RED_KING) && isRedTurn){
+                    if ((board[row-1][col+1] == GREEN_PAWN || board[row-1][col+1] == GREEN_KING)  &&
+                        (board[row-2][col+2] == EMPTY)) {
+                        value -= 3;
+                        cout << "Green, You're in danger of being jumped! 1" << endl;
+                    }
+                    if((board[row-1][col-1] == GREEN_PAWN || board[row-1][col-1] == GREEN_KING) &&
+                       (board[row-2][col-2] == EMPTY)) {
+                        value -= 3;
+                        cout << "Green, You're in danger of being jumped! 2" << endl;
+                    }
+                    if (board[row][col] == RED_KING) {
+                        if ((board[row+1][col+1] == GREEN_PAWN || board[row+1][col+1] == GREEN_KING) &&
+                            (board[row+2][col+2] == EMPTY)) {
+                            value -= 3;
+                            cout << "Green, You're in danger of being jumped! 3" << endl;
+                        }
+                        if ((board[row+1][col-1] == GREEN_PAWN || board[row+1][col-1] == GREEN_KING) &&
+                            (board[row+2][col-2] == EMPTY)) {
+                            value -= 3;
+                            cout << "Green, You're in danger of being jumped! 4" << endl;
+                        }
+                    }
                 }
+
             }
 
-            /**
-            *  try find a position to jump Red - as king
-            */
-            if (board[row - 1][col + 1] == RED_PAWN || board[row - 1][col + 1] == RED_KING) {
-                if (board[row - 2][col + 2] == EMPTY) {
-                    cout << "Ready to be jumped" << endl;
-//                    position *from = new position((char) (col + 65), (char) (row + 49));
-//                    position *to = new position((char) (col + 2 + 65), (char) (row - 2 + 49));
-//                    if (from->is_valid() && to->is_valid()) {
-//                        _move *possible_move = new _move(*from, *to);
-//                        if (check_move(*possible_move)) {
-//                            auto current_move_list = new move_list(*possible_move);
-//                            this->possibleMovesList = possibleMovesList->add(current_move_list);
-//                        }
-//                    }
-                }
-            }
-
-            if (board[row - 1][col - 1] == RED_PAWN || board[row - 1][col - 1] == RED_KING) {
-                if (board[row - 2][col - 2] == EMPTY) {
-                    cout << "Ready to be jumped" << endl;
-//                    position *from = new position( (char)(col+65), (char)(row + 49));
-//                    position *to = new position( (char)(col-2+65), (char)(row-2+ 49));
-//                    if (from->is_valid() && to->is_valid()) {
-//                        _move *possible_move = new _move(*from, *to);
-//                        if (check_move(*possible_move)) {
-//                            auto current_move_list = new move_list(*possible_move);
-//                            this->possibleMovesList = possibleMovesList->add(current_move_list);
-//                        }
-//                    }
-                }
-            }
         }
     }
 
     /** How close are you to being blocked? i.e. are you able to make several possible moves? **/
-    //PS i know this is a terrible way to do this but im running out of time
-    bool original_isGreenTurn = isGreenTurn;
-    bool original_isRedTurn = isRedTurn;
-    isGreenTurn = true;
-    isRedTurn = false;
-    move_list *GreenTempList = find_moves();
-    int green_num_of_moves = GreenTempList->count(GreenTempList);
-    value += green_num_of_moves;
-
-//    while (GreenTempList->next != NULL){
-//        GreenTempList->get_next();
-//        green_num_of_moves = GreenTempList->count(GreenTempList);
-//        value += green_num_of_moves;
-//    }
-
-    isGreenTurn = false;
-    isRedTurn = true;
-    move_list *RedTempList = find_moves();
-    int red_num_of_moves = RedTempList->count(RedTempList);
-    value -= red_num_of_moves;
-    delete RedTempList;
-    delete GreenTempList;
-
-    isGreenTurn = original_isGreenTurn;
-    isRedTurn = original_isRedTurn;
+    int greatestNumOfMoves = 0;
+    while(possibleMovesList != NULL){
+        auto temp = possibleMovesList->get_move().to_text();
+        if (possibleMovesList->get_total_possible_future_moves() > greatestNumOfMoves){
+            greatestNumOfMoves = possibleMovesList->get_total_possible_future_moves();
+        }
+        cout << "For move [" << temp << "], there are " << possibleMovesList->get_total_possible_future_moves() << " number of future moves." << endl;
+        // this is the calculated VALUE of the future pathway given this choice of move, use it to determine if this is a better pathway then just total number of future moves
+        cout << "For move [" << temp << "] and its children, its evaluated value is: " << possibleMovesList->get_total_move_future_value() << endl;
+        possibleMovesList = possibleMovesList->get_next();
+    }
+    value += greatestNumOfMoves;
 
     return value;
+
+}
+
+
+/**
+ * 1) Builds the game tree to a minimum depth of 3 levels
+ * 2) Calls the evaluation method for each of the leaf nodes
+ * 3) Determines the best move to play
+ * 4) Plays the best move
+ * Note: pruning is optional. If you do a depth first traversal, you do not need to build and store the complete tree, but find the moves as you go.
+ * You may need to add additional methods to your move_list class to help you do this.
+ * Integrate all of the classes together to play your game as human vs computer (by using appropriate code within your main() program.
+ * Ensure that your code is well commented, and other documentation is provided with your source code (see the assignment sheet for the marking rubric).
+ */
+void game_state::computer_move( void ) {
 
 }
